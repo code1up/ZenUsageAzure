@@ -176,6 +176,8 @@ exports.getservices = function(username, password, usertoken, clienttoken, callb
 				});
 			});
 
+
+
 			callback(null, response);
 		}
 	});
