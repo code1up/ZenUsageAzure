@@ -1,5 +1,4 @@
 function _bob() {
-{
 	var response = {
 		username: username,
 		usertoken: "b4ecbcd3-3914-4eea-9d89-5147d7f89784",
@@ -30,10 +29,8 @@ exports.signin = function(username, password, callback) {
 	var localpart = username.substring(0, at);
 	var response;
 
-	switch(localpart) {
-		case "bob":
-			response = _bob();
-			break;
+	if (localpart === "bob") {
+		response = _bob();
 	}
 
 	callback(null, response);
