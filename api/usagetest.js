@@ -30,7 +30,7 @@ exports.signin = function(username, password, callback) {
 	var localpart = username.substring(0, at);
 
 	switch(localpart) {
-		case: "bob"
+		case "bob":
 			response = _bob();
 			break;
 	}
