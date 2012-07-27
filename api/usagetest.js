@@ -1,4 +1,4 @@
-function _bob(callback) {
+function _bob() {
 {
 	var response = {
 		username: username,
@@ -28,6 +28,7 @@ function _bob(callback) {
 exports.signin = function(username, password, callback) {
 	var at = username.indexOf("@");
 	var localpart = username.substring(0, at);
+	var response;
 
 	switch(localpart) {
 		case "bob":
