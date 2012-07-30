@@ -25,11 +25,9 @@ function _signIn(res, username, password) {
     setTimeout(function() {
         api.signin(username, password, function(error, data) {
             if (error) {
-                console.log("ERROR");
                 console.log(util.inspect(error));
                 res.send(error, 500);
             } else {
-                console.log("DATA");
                 console.log(util.inspect(data));
                 res.send(data, 200);
             }

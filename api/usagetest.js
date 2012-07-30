@@ -1,8 +1,8 @@
 var uuid = require("node-uuid");
 
-function _bob() {
+function _bob(emailAddress) {
 	var response = {
-		emailAddress: userName,
+		emailAddress: emailAddress,
 		authToken: uuid.v4(),
 		clientToken: uuid.v4(),
 		services: [
@@ -26,7 +26,7 @@ function _bob() {
 			},
 			{
 				userName: "zen794632@zen",
-				alias: "Manchester Office",
+				alias: null,
 				productName: "Zen Lite",
 				isUsageAvailable: false
 			}
@@ -34,13 +34,6 @@ function _bob() {
 	};
 
 	return response;
-}
-
-function _getLocalPart(emailAddress) {
-	var at = emailAddress.indexOf("@");
-	var localPart = username.substring(0, at);
-
-	return localPart;	
 }
 
 function _getRandomProduct() {
@@ -92,27 +85,34 @@ function _getRandomProduct() {
 	return products[index];
 }
 
+function _getLocalPart(emailAddress) {
+	var at = emailAddress.indexOf("@");
+	var localPart = emailAddress.substring(0, at);
+
+	return localPart;	
+}
+
 exports.signin = function(emailAddress, password, callback) {
 	var localPart = _getLocalPart(emailAddress);
 	var response;
 
-	if (localpart === "alice") {
-		response = _alice();
+	if (localPart === "alice") {
+		response = _alice(emailAddress);
 
-	} else if (localpart === "bob") {
-		response = _bob();
+	} else if (localPart === "bob") {
+		response = _bob(emailAddress);
 
-	} else if (localpart === "carol") {
-		response = _carol();
+	} else if (localPart === "carol") {
+		response = _carol(emailAddress);
 
-	} else if (localpart === "dave") {
-		response = _dave();
+	} else if (localPart === "dave") {
+		response = _dave(emailAddress);
 
-	} else if (localpart === "eve") {
-		response = _eve();
+	} else if (localPart === "eve") {
+		response = _eve(emailAddress);
 
 	} else {
-		response = _randy();
+		response = _randy(emailAddress);
 
 	}
 

@@ -1,14 +1,3 @@
-/*
-	TODO: could look for soap:Fault for more detail
-
-	{ 'soap:Fault': 
-	{ faultcode: 'soap:Server',
-		faultstring: 'Server was unable to process request. ---> [Zen.Exceptions.AuthenticationException]: Failed to login to remote server. The provided authentication GUID is invalid or the cache has expired. You should re-authenticate to the web service to request a new authentication GUID and establish a new cache item.',
-		detail: {} } }
-
-	TODO: handle HTTP response 500 specifically - user failed to sign in.
-*/
-
 var _ = require("underscore");
 var request = require("request");
 var util = require("util");
@@ -53,20 +42,20 @@ var _template = [
 	'</soap:Envelope>'
 ].join("");
 
-function _isTestRequest(username) {
+function _isTestRequest(emailAddress) {
 	var re = /^.*@example.com$/gi;
 
-	return re.test(username);
+	return re.test(emailAddress);
 }
 
-function _makeRequest(template, message, username, password, extra) {
+function _makeRequest(template, message, emailAddress, password, extra) {
 	var bodyString = "";
 
 	// TODO: extra.parameters?!
 	if (_.isObject(extra)) {
 		var clone = _.clone(extra);
 
-		clone.username = username;
+		clone.emailAddress = emailAddress;
 		clone.password = password;
 
 		var keys = _.keys(clone);
@@ -83,54 +72,37 @@ function _makeRequest(template, message, username, password, extra) {
 
 	template = template
 		.replace(/__action__/mgi, _.escape(message))
-		.replace(/__username__/mgi, _.escape(username))
+		.replace(/__username__/mgi, _.escape(emailAddress))
 		.replace(/__password__/mgi, _.escape(password))
 		.replace(/__body__/mgi, bodyString); // body is already escaped
 	
 	return template;
 }
 
-function _send(message, username, password, extra, callback) {
-	var body = _makeRequest(_template, message, username, password, extra);
+function _send(message, emailAddress, password, extra, callback) {
+	var body = _makeRequest(_template, message, emailAddress, password, extra);
 
 	request.post({
 		url: _url,
 		headers: _headers,
 		body: body
 	}, function(error, data, body) {
+		var errorMessage;
+		var internalError;
+
 		if (error) {
-			callback(
-				{
-					errorMessage: "A network error occurred, please check your Internet connection.",
-					internalError: error
-				},
-				data,
-				body
-			);
+			errorMessage = "A network error occurred, please check your Internet connection.";
+			internalError = error;
+
 		} else if (!data || !data.statusCode) {
-			callback(
-				{
-					errorMessage: "No data or data status code received."
-				},
-				data,
-				body
-			);
+			errorMessage = "Neither data nor data status code received.";
+
 		} else if (data.statusCode === 500) {
-			callback(
-				{
-					errorMessage: "Invalid email address or password."
-				},
-				data,
-				body
-			);
+			errorMessage = "Invalid email address or password.";
+
 		} else if (data.statusCode !== 200) {
-			callback(
-				{
-					errorMessage: "Unexpected error occurred with status code " + data.statusCode + "."
-				},
-				data,
-				body
-			);
+			errorMessage = "Unexpected error occurred with status code " + data.statusCode + ".";
+			
 		} else {
 			var parser = new xml2js.Parser();
 
@@ -140,18 +112,28 @@ function _send(message, username, password, extra, callback) {
 				callback(null, data, body);
 			});
 		}
+
+		if (errorMessage || internalError) {
+			callback({
+				status: "ERROR",
+				errorMessage: errorMessage || "Internal error.",
+				internalError: internalError
+			},
+			data,
+			body);
+		}
 	});
 }
 
-exports.getservices = function(username, password, usertoken, clienttoken, callback) {
+exports.getservices = function(emailAddress, password, authToken, clientToken, callback) {
 	var message = "GetAuthorisedBroadbandAccounts";
 
 	var extra = {
-		AuthenticationGUID: usertoken,
-		ClientValidationGUID: clienttoken
+		AuthenticationGUID: authToken,
+		ClientValidationGUID: clientToken
 	};		
 
-	_send(message, username, password, extra, function(error, data, body) {
+	_send(message, emailAddress, password, extra, function(error, data, body) {
 		if (error) {
 			callback(error);
 
@@ -159,65 +141,63 @@ exports.getservices = function(username, password, usertoken, clienttoken, callb
 			var services = body.GetAuthorisedBroadbandAccountsResponse.GetAuthorisedBroadbandAccountsResult;
 			
 			var response = {
-				username: username,
+				status: "OK",
+				emailAddress: emailAddress,
 				password: password,
-				usertoken: usertoken,
-				clienttoken: clienttoken,
+				authToken: authToken,
+				clientToken: clientToken,
 				services: []
 			};
 
 			_.each(services, function(service) {
 				response.services.push({
-					username: service.DSLUsername,
+					userName: service.DSLUsername,
 					alias: service.AliasName,
-					productname: service.ProductName,
-					// TODO: returns a string.
-					isusageavailable: service.IsUsageInformationAvailable
+					productName: service.ProductName,
+					isUsageAvailable: (service.IsUsageInformationAvailable === "true")
 				});
 			});
-
-
 
 			callback(null, response);
 		}
 	});
 };
 
-exports.validateclient = function(username, password, usertoken, callback) {
+exports.validateclient = function(emailAddress, password, authToken, callback) {
 	var message = "ValidateClient"; 
 	var version = "0.1";
 	var clientName = "ZenPlex";
 	var isBeta = true;
 
 	var extra = {
-		AuthenticationGUID: usertoken,
+		AuthenticationGUID: authToken,
 		ClientVersion: version,
 		ClientName: clientName,
 		ClientIsBeta: isBeta
 	};
 
-	_send(message, username, password, extra, function(error, data, body) {
+	_send(message, emailAddress, password, extra, function(error, data, body) {
 		if (error) {
 			callback(error);
 
 		} else {
-			var clienttoken = body.ValidateClientResponse.ValidateClientResult;
+			var clientToken = body.ValidateClientResponse.ValidateClientResult;
 
 			callback(null, {
-				username: username,
+				emailAddress: emailAddress,
 				password: password,
-				usertoken: usertoken,
-				clienttoken: clienttoken
+				authToken: authToken,
+				clientToken: clientToken
 			});
 		}
 	});
 };
 
-exports.signin = function(username, password, callback) {
+exports.signin = function(emailAddress, password, callback) {
 	var message = "Authenticate";
 
 	var extra = {
-		username: username,
+		emailAddress: emailAddress,
 		password: password
 	};
 
@@ -225,12 +205,7 @@ exports.signin = function(username, password, callback) {
 		if (error) {
 			callback(error);
 		} else {
-			callback(null, {
-				username: data.username,
-				usertoken: data.usertoken,
-				clienttoken: data.clienttoken,
-				services: data.services
-			});
+			callback(null, data);
 		}
 	};
 
@@ -239,10 +214,10 @@ exports.signin = function(username, password, callback) {
 			callback(error);
 		} else {
 			exports.getservices(
-				data.username,
+				data.emailAddress,
 				data.password,
-				data.usertoken,
-				data.clienttoken,
+				data.authToken,
+				data.clientToken,
 				_getServicesHandler);
 		}
 	};
@@ -252,21 +227,21 @@ exports.signin = function(username, password, callback) {
 			callback(error);
 
 		} else {
-			var usertoken = body.AuthenticateResponse.AuthenticateResult;
+			var authToken = body.AuthenticateResponse.AuthenticateResult;
 
 			exports.validateclient(
-				username,
+				emailAddress,
 				password,
-				usertoken,
+				authToken,
 				_validateClientHandler);
 		}
 	};
 
-	if (_isTestRequest(username)) {
-		usagetest.signin(username, password, callback);
+	if (_isTestRequest(emailAddress)) {
+		usagetest.signin(emailAddress, password, callback);
 
 	} else {
-		_send(message, username, password, extra, _signInHandler);
+		_send(message, emailAddress, password, extra, _signInHandler);
 
 	}
 };
