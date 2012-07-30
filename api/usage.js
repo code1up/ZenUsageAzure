@@ -102,7 +102,7 @@ function _send(message, emailAddress, password, extra, callback) {
 
 		} else if (data.statusCode !== 200) {
 			errorMessage = "Unexpected error occurred with status code " + data.statusCode + ".";
-			
+
 		} else {
 			var parser = new xml2js.Parser();
 
@@ -193,7 +193,7 @@ exports.validateclient = function(emailAddress, password, authToken, callback) {
 	});
 };
 
-exports.signin = function(emailAddress, password, callback) {
+exports.signIn = function(emailAddress, password, callback) {
 	var message = "Authenticate";
 
 	var extra = {
@@ -222,7 +222,7 @@ exports.signin = function(emailAddress, password, callback) {
 		}
 	};
 
-	var _signInHandler = function(error, data, body) {
+	var _authHandler = function(error, data, body) {
 		if (error) {
 			callback(error);
 
@@ -241,7 +241,54 @@ exports.signin = function(emailAddress, password, callback) {
 		usagetest.signin(emailAddress, password, callback);
 
 	} else {
-		_send(message, emailAddress, password, extra, _signInHandler);
+		_send(message, emailAddress, password, extra, _authHandler);
 
 	}
+};
+
+exports.getUsage = function(emailAddress, password, callback) {
+	var message = "GetUsage";
+
+	var extra = {
+		emailAddress: emailAddress,
+		password: password
+	};
+
+	var _getUsageHandler = function(error, data) {
+		if (error) {
+			callback(error);
+		} else {
+			callback(null, data);
+		}
+	};
+
+	var _validateClientHandler = function(error, data) {
+		if (error) {
+			callback(error);
+		} else {
+			exports.getservices(
+				data.emailAddress,
+				data.password,
+				data.authToken,
+				data.clientToken,
+				_getUsageHandler);
+		}
+	};
+
+	var _authHandler = function(error, data, body) {
+		if (error) {
+			callback(error);
+
+		} else {
+			var usage = body.AuthenticateResponse.AuthenticateResult;
+
+			exports.validateclient(
+				emailAddress,
+				password,
+				authToken,
+				_validateClientHandler);
+		}
+	};
+
+	_send(message, emailAddress, password, extra, _authHandler);
 };
